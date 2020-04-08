@@ -460,71 +460,6 @@ class DIC_and_TIF:
         pass
 
 
-    def per_pix_dic_to_spatial_tif(self, mode, folder):
-
-        outfolder = this_root + mode + '\\' + folder + '_tif\\'
-        Tools().mk_dir(outfolder)
-        tif_template = this_root + 'conf\\tif_template.tif'
-        _, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
-        fdir = this_root + mode + '\\' + folder + '\\'
-        flist = os.listdir(fdir)
-        for f in flist:
-            print(f)
-
-        spatial_dic = {}
-        for f in tqdm(flist):
-            pix_dic = dict(np.load(fdir + f).item())
-            for pix in pix_dic:
-                vals = pix_dic[pix]
-                spatial_dic[pix] = vals
-        x = []
-        y = []
-        for key in spatial_dic:
-            key_split = key.split('.')
-            x.append(key_split[0])
-            y.append(key_split[1])
-        row = len(set(x))
-        col = len(set(y))
-
-        for date in tqdm(range(len(spatial_dic['0000.0000']))):
-            spatial = []
-            for r in range(row):
-                temp = []
-                for c in range(col):
-                    key = '%03d.%03d' % (r, c)
-                    val_pix = spatial_dic[key][date]
-                    temp.append(val_pix)
-                spatial.append(temp)
-            spatial = np.array(spatial)
-            grid = np.isnan(spatial)
-            grid = np.logical_not(grid)
-            spatial[np.logical_not(grid)] = -999999
-            to_raster.array2raster(outfolder + '%03d.tif' % date, originX, originY, pixelWidth, pixelHeight, spatial)
-            # plt.imshow(spatial)
-            # plt.colorbar()
-            # plt.show()
-
-        # x = []
-        # y = []
-        # for key in spatial_dic:
-        #     key_split = key.split('.')
-        #     x.append(key_split[0])
-        #     y.append(key_split[1])
-        # row = len(set(x))
-        # col = len(set(y))
-        # spatial = []
-        # all_vals = []
-        # for r in tqdm(range(row)):
-        #     temp = []
-        #     for c in range(col):
-        #         key = '%03d.%03d' % (r, c)
-        #         val_pix = spatial_dic[key]
-        #         temp.append(val_pix)
-        #         all_vals.append(val_pix)
-        #     spatial.append(temp)
-
-        pass
-
     def arr_to_tif(self, array, newRasterfn):
         # template
         tif_template = this_root + 'conf\\tif_template.tif'
@@ -551,7 +486,7 @@ class DIC_and_TIF:
         pix_dic = {}
         for i in range(len(arr)):
             for j in range(len(arr[0])):
-                pix = '%03d.%03d'%(i,j)
+                pix = (i,j)
                 val = arr[i][j]
                 pix_dic[pix] = val
 
@@ -576,7 +511,7 @@ class DIC_and_TIF:
         for r in range(row):
             temp = []
             for c in range(col):
-                key = '%03d.%03d' % (r, c)
+                key = (r, c)
                 if key in spatial_dic:
                     val_pix = spatial_dic[key]
                     temp.append(val_pix)
@@ -592,17 +527,6 @@ class DIC_and_TIF:
 
         spatial = np.array(spatial,dtype=float)
         return spatial
-        # # plt.figure()
-        # # plt.hist(hist,bins=100)
-        # # plt.title(str(set_level))
-        # plt.figure()
-        # # spatial = np.ma.masked_where(spatial<0,spatial)
-        # # spatial = np.ma.masked_where(spatial>2,spatial)
-        # # plt.imshow(spatial,'RdBu_r',vmin=0.7 ,vmax=1.3)
-        # plt.imshow(spatial, 'RdBu_r')
-        # plt.colorbar()
-        # # plt.title(str(set_level))
-        # plt.show()
 
 
     def pix_dic_to_spatial_arr_ascii(self, spatial_dic):
@@ -623,7 +547,7 @@ class DIC_and_TIF:
         for r in range(row):
             temp = []
             for c in range(col):
-                key = '%03d.%03d' % (r, c)
+                key = (r, c)
                 if key in spatial_dic:
                     val_pix = spatial_dic[key]
                     temp.append(val_pix)
@@ -649,7 +573,7 @@ class DIC_and_TIF:
         pix_to_lon_lat_dic = {}
         for i in tqdm(range(len(arr))):
             for j in range(len(arr[0])):
-                pix = '%03d.%03d' % (i, j)
+                pix = (i, j)
                 lon = originX + pixelWidth * j
                 lat = originY + pixelHeight * i
                 pix_to_lon_lat_dic[pix] = [lon, lat]
@@ -662,7 +586,7 @@ class DIC_and_TIF:
         void_dic = {}
         for row in range(len(arr)):
             for col in range(len(arr[row])):
-                key = '%03d.%03d' % (row, col)
+                key = (row, col)
                 void_dic[key] = []
         return void_dic
 
@@ -673,7 +597,7 @@ class DIC_and_TIF:
         void_dic = {}
         for row in range(len(arr)):
             for col in range(len(arr[row])):
-                key = '%03d.%03d' % (row, col)
+                key = (row, col)
                 void_dic[key] = np.nan
         return void_dic
 
@@ -1146,3 +1070,12 @@ class Pre_Process:
                 null_list.extend(val)
                 new_dic[key] = null_list
             np.save(outdir + f, new_dic)
+
+
+def main():
+
+    pass
+
+
+if __name__ == '__main__':
+    main()

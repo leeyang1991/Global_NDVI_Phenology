@@ -2,10 +2,7 @@
 '''
 Forked from https://github.com/pckujawa/harmonic_analysis_of_time_series
 '''
-import numpy as np
-from matplotlib import pyplot as plt
-from tqdm import tqdm
-
+from __init__ import *
 
 # Computing diagonal for each row of a 2d array. See: http://stackoverflow.com/q/27214027/2459096
 def makediag3d(M):

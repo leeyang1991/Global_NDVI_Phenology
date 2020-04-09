@@ -846,15 +846,6 @@ class Pre_Process:
         pass
 
     def run(self):
-        fdir = this_root+'GPP\\tif\\'
-        per_pix = this_root+'data\\SPEI\\per_pix\\'
-        anomaly = this_root+'GPP\\per_pix_anomaly\\'
-        # # Tools().mk_dir(outdir)
-        self.data_transform(fdir,per_pix)
-        self.cal_anomaly(per_pix,anomaly)
-
-        # self.check_ndvi_anomaly()
-        # self.check_per_pix(per_pix)
 
         pass
 
@@ -869,6 +860,15 @@ class Pre_Process:
             print outdir
             Tools().mk_dir(outdir)
             self.data_transform(father_dir + spei_dir + '\\', outdir)
+
+
+    def kenel_data_transfrom(self,params):
+
+        col,all_array,r,void_dic = params
+
+
+
+        pass
 
     def data_transform(self, fdir, outdir):
         # 不可并行，内存不足
@@ -890,6 +890,11 @@ class Pre_Process:
                     if f.split('.')[0] == d:
                         # print(d)
                         array, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(fdir + f)
+                        array = np.array(array,dtype=np.int16)
+                        # print np.min(array)
+                        # print type(array)
+                        # plt.imshow(array)
+                        # plt.show()
                         all_array.append(array)
 
         row = len(all_array[0])
@@ -899,16 +904,17 @@ class Pre_Process:
         void_dic_list = []
         for r in range(row):
             for c in range(col):
-                void_dic['%03d.%03d' % (r, c)] = []
-                void_dic_list.append('%03d.%03d' % (r, c))
+                void_dic[(r, c)] = []
+                void_dic_list.append((r, c))
 
         # print(len(void_dic))
         # exit()
-        for r in tqdm(range(row), 'transforming...'):
+        params = []
+        for r in tqdm(range(row)):
             for c in range(col):
                 for arr in all_array:
                     val = arr[r][c]
-                    void_dic['%03d.%03d' % (r, c)].append(val)
+                    void_dic[(r, c)].append(val)
 
         # for i in void_dic_list:
         #     print(i)
@@ -1073,7 +1079,7 @@ class Pre_Process:
 
 
 def main():
-
+    raise IOError('Do not run this script')
     pass
 
 

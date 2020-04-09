@@ -110,22 +110,22 @@ def data_transform(fdir, outdir):
 
 def split_files():
 
-    fdir = this_root+'data\\NDVI\\tif_8km_bi_weekly\\'
-    outdir = this_root+'data\\NDVI\\tif_8km_bi_weekly_yearly\\'
-
+    fdir = this_root+'data\\NDVI\\tif_0.25_bi_weekly\\'
+    outdir = this_root+'data\\NDVI\\tif_0.25_bi_weekly_yearly\\'
+    Tools().mk_dir(outdir)
     years = np.array(range(1982,2016))
-    for y in years:
+    for y in tqdm(years):
         for f in os.listdir(fdir):
             year = int(f[:4])
             if y == year:
                 outdir_y = outdir+'{}\\'.format(y)
                 Tools().mk_dir(outdir_y)
-                shutil.move(fdir+f,outdir_y+f)
+                shutil.copy(fdir+f,outdir_y+f)
 
 
 def data_transform_split_files():
-    fdir = this_root+'data\\NDVI\\tif_8km_bi_weekly_yearly\\'
-    outdir = this_root+'data\\NDVI\\per_pix_yearly\\'
+    fdir = this_root+'data\\NDVI\\tif_0.25_bi_weekly_yearly\\'
+    outdir = this_root+'data\\NDVI\\per_pix_0.25_bi_weekly_yearly\\'
     for year in os.listdir(fdir):
         print year
         fdir_i = fdir+year+'\\'
@@ -138,10 +138,11 @@ def data_transform_split_files():
 
 def main():
     # hdf_to_tif()
-    # data_transform_split_files()
-    fdir = this_root+'data\\NDVI\\tif_0.5_bi_weekly\\'
-    outdir = this_root+'data\\NDVI\\per_pix_tif_0.5_bi_weekly\\'
-    data_transform(fdir,outdir)
+    split_files()
+    data_transform_split_files()
+    # fdir = this_root+'data\\NDVI\\tif_0.5_bi_weekly\\'
+    # outdir = this_root+'data\\NDVI\\per_pix_tif_0.5_bi_weekly\\'
+    # data_transform(fdir,outdir)
 
     pass
 

@@ -7,7 +7,7 @@ def sleep(t=1):
     time.sleep(t)
 
 
-class Phenology:
+class Phenology_old:
 
     def __init__(self):
         self.this_class_arr = this_root + 'outdir_2020\\arr\\Phenology\\'
@@ -776,6 +776,170 @@ class Phenology:
                 DIC_and_TIF().arr_to_tif(arr_anomaly, outdir_i + fname)
 
         pass
+
+class Phenology:
+
+    def __init__(self):
+        self.this_class_arr = results_root + 'arr\\Phenology\\'
+        self.this_class_tif = results_root + 'tif\\Phenology\\'
+        Tools().mk_dir(self.this_class_arr, force=True)
+        Tools().mk_dir(self.this_class_tif, force=True)
+        pass
+
+    def run(self):
+        # 1 把多年的NDVI分成单年，分文件夹存储
+        # 2 把单年的NDVI tif 转换成 perpix
+        # self.data_transform_split_files()
+        # 3 hants smooth
+        # self.hants()
+        self.check_hants()
+        pass
+
+    def data_transform(self,fdir, outdir):
+        # 不可并行，内存不足
+        Tools().mk_dir(outdir)
+        # 将空间图转换为数组
+        # per_pix_data
+        flist = os.listdir(fdir)
+        date_list = []
+        for f in flist:
+            if f.endswith('.tif'):
+                date = f.split('.')[0]
+                date_list.append(date)
+        date_list.sort()
+        all_array = []
+        for d in tqdm(date_list, 'loading...'):
+            # for d in date_list:
+            for f in flist:
+                if f.endswith('.tif'):
+                    if f.split('.')[0] == d:
+                        # print(d)
+                        array, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(fdir + f)
+                        array = np.array(array, dtype=float)
+                        # print np.min(array)
+                        # print type(array)
+                        # plt.imshow(array)
+                        # plt.show()
+                        all_array.append(array)
+
+        row = len(all_array[0])
+        col = len(all_array[0][0])
+
+        void_dic = {}
+        void_dic_list = []
+        for r in range(row):
+            for c in range(col):
+                void_dic['%03d.%03d' %(r, c)] = []
+                void_dic_list.append('%03d.%03d' %(r, c))
+
+        # print(len(void_dic))
+        # exit()
+        params = []
+        for r in tqdm(range(row)):
+            for c in range(col):
+                for arr in all_array:
+                    val = arr[r][c]
+                    void_dic['%03d.%03d' %(r, c)].append(val)
+
+        # for i in void_dic_list:
+        #     print(i)
+        # exit()
+        flag = 0
+        temp_dic = {}
+        for key in tqdm(void_dic_list, 'saving...'):
+            flag += 1
+            # print('saving ',flag,'/',len(void_dic)/100000)
+            temp_dic[key] = void_dic[key]
+            if flag % 10000 == 0:
+                # print('\nsaving %02d' % (flag / 10000)+'\n')
+                np.save(outdir + 'per_pix_dic_%03d' % (flag / 10000), temp_dic)
+                temp_dic = {}
+        np.save(outdir + 'per_pix_dic_%03d' % 0, temp_dic)
+
+
+    def data_transform_split_files(self):
+        fdir = data_root + 'NDVI\\tif_0.5_bi_weekly_yearly\\'
+        outdir = data_root + 'NDVI\\per_pix_yearly\\'
+        for year in os.listdir(fdir):
+            print year
+            fdir_i = fdir + year + '\\'
+            outdir_i = outdir + year + '\\'
+            Tools().mk_dir(outdir_i, force=1)
+            self.data_transform(fdir_i, outdir_i)
+
+        pass
+
+
+    def kernel_hants(self,params):
+        outdir,y,fdir = params
+        outdir_y = outdir + y + '\\'
+        Tools().mk_dir(outdir_y, force=1)
+        for f in os.listdir(fdir + y):
+            dic = dict(np.load(fdir + y + '\\' + f).item())
+            hants_dic = {}
+            for pix in dic:
+                vals = dic[pix]
+                vals = np.array(vals)
+                std = np.std(vals)
+                if std == 0:
+                    continue
+                xnew, ynew = self.__interp__(vals)
+                ynew = np.array([ynew])
+                # print np.std(ynew)
+                results = HANTS(sample_count=365, inputs=ynew, low=-10000, high=10000,
+                                fit_error_tolerance=std)
+                result = results[0]
+
+                # plt.plot(result)
+                # plt.plot(range(len(ynew[0])),ynew[0])
+                # plt.show()
+                hants_dic[pix] = result
+            np.save(outdir_y + f, hants_dic)
+
+
+
+    def hants(self):
+        outdir = self.this_class_arr+'hants_smooth\\'
+        fdir = data_root+'NDVI\\per_pix_yearly\\'
+        params = []
+        for y in os.listdir(fdir):
+            params.append([outdir,y,fdir])
+        MULTIPROCESS(self.kernel_hants,params).run(process=1)
+
+
+    def check_hants(self):
+
+        fdir = self.this_class_arr+'hants_smooth\\'
+        for year in os.listdir(fdir):
+            perpix_dir = fdir+'{}\\'.format(year)
+            for f in os.listdir(perpix_dir):
+                if not '015' in f:
+                    continue
+                dic = T.load_npy(perpix_dir+f)
+                for pix in dic:
+                    vals = dic[pix]
+                    if len(vals) > 0:
+                        # print pix,vals
+                        plt.plot(vals)
+                        plt.show()
+                        sleep()
+            exit()
+
+
+
+    def __interp__(self,vals):
+
+        # x_new = np.arange(min(inx), max(inx), ((max(inx) - min(inx)) / float(len(inx))) / float(zoom))
+
+        inx = range(len(vals))
+        iny = vals
+        x_new = np.linspace(min(inx),max(inx),365)
+        func = interpolate.interp1d(inx, iny)
+        y_new = func(x_new)
+
+        return x_new,y_new
+
+
 def main():
     Phenology().run()
     pass

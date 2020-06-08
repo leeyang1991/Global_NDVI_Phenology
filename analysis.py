@@ -5,8 +5,8 @@ from __init__ import *
 class Phenology:
 
     def __init__(self):
-        self.this_class_arr = this_root + 'arr\\Phenology\\'
-        self.this_class_tif = this_root + 'tif\\Phenology\\'
+        self.this_class_arr = result_root + 'arr\\Phenology\\'
+        self.this_class_tif = result_root + 'tif\\Phenology\\'
         Tools().mk_dir(self.this_class_arr, force=True)
         Tools().mk_dir(self.this_class_tif, force=True)
         pass
@@ -14,7 +14,7 @@ class Phenology:
     def run(self):
         ############# preprocess ##############
         # self.split_files()
-        # self.data_transform_split_files()
+        self.data_transform_split_files()
         ############# preprocess ##############
         # self.hants()
         # self.SOS_EOS(0.4)
@@ -25,7 +25,7 @@ class Phenology:
         #         self.plot_SOS_EOS(part,threshold_i=threshold)
 
         # self.plot_SOS_bar()
-        self.plot_part1_part2_bar()
+        # self.plot_part1_part2_bar()
 
 
         pass

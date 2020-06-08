@@ -29,11 +29,13 @@ import random
 import h5py
 import shutil
 
-from LY_Tools import *
-from HANTS import *
 this_root = 'D:\\project_phenology\\'
+data_root = 'D:\\project_phenology\\data\\'
+results_root = 'D:\\project_phenology\\results\\'
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
-
+from LY_Tools import *
+from HANTS import *
+T = Tools()
 def sleep(t=1):
     time.sleep(t)

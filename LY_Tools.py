@@ -8,6 +8,8 @@ class Tools:
     '''
 
     def __init__(self):
+        self.this_class_arr = results_root + 'arr\\Tools\\'
+        self.mk_dir(self.this_class_arr, force=True)
         pass
 
     def mk_dir(self, dir, force=False):
@@ -17,6 +19,62 @@ class Tools:
                 os.makedirs(dir)
             else:
                 os.mkdir(dir)
+
+    def load_npy(self,f):
+
+        return dict(np.load(f).item())
+
+    def mask_999999_arr(self,arr):
+        arr[arr<-99999]=np.nan
+
+    def lonlat_to_address(self,lon, lat):
+        ak = "mziulWyNDGkBdDnFxWDTvELlMSun8Obt"  # 参照自己的应用
+        url = 'http://api.map.baidu.com/reverse_geocoding/v3/?ak=mziulWyNDGkBdDnFxWDTvELlMSun8Obt&output=json&coordtype=wgs84ll&location=%s,%s' % (
+        lat, lon)
+        content = requests.get(url).text
+        dic = eval(content)
+        # for key in dic['result']:
+        add = dic['result']['formatted_address']
+        return add
+
+
+    def spatial_arr_filter_n_sigma(self,spatial_arr,n=3):
+        arr_std = np.nanstd(spatial_arr)
+        arr_mean = np.nanmean(spatial_arr)
+        top = arr_mean + n*arr_std
+        bottom = arr_mean - n*arr_std
+        spatial_arr[spatial_arr>top] = np.nan
+        spatial_arr[spatial_arr<bottom] = np.nan
+
+
+
+
+    def pix_to_address(self, pix):
+        # 只适用于单个像素查看，不可大量for循环pix，存在磁盘重复读写现象
+        outf = self.this_class_arr + 'pix_to_address_history.npy'
+        if not os.path.isfile(outf):
+            np.save(outf, {0: 0})
+        pix_to_lon_lat_dic_f = DIC_and_TIF().this_class_arr+'pix_to_lon_lat_dic.npy'
+        if not os.path.isfile(pix_to_lon_lat_dic_f):
+            DIC_and_TIF().spatial_tif_to_lon_lat_dic()
+        lon_lat_dic = self.load_npy(pix_to_lon_lat_dic_f)
+        # print(pix)
+        lon, lat = lon_lat_dic[pix]
+        print(lon, lat)
+
+        history_dic = self.load_npy(outf)
+
+        if pix in history_dic:
+            # print(history_dic[pix])
+            return lon, lat, history_dic[pix]
+        else:
+            address = self.lonlat_to_address(lon, lat).decode('utf-8')
+            key = pix
+            val = address
+            history_dic[key] = val
+            np.save(outf, history_dic)
+            return lon, lat, address
+
 
     def interp_1d(self, val,threashold):
         if len(val) == 0 or np.std(val) == 0:
@@ -95,7 +153,7 @@ class Tools:
 
 
 
-    def interp_nan(self,val):
+    def interp_nan(self,val,kind='nearest'):
         if len(val) == 0 or np.std(val) == 0:
             return [None]
 
@@ -107,11 +165,12 @@ class Tools:
             if not np.isnan(val[i]):
                 flag += 1.
                 index = i
-                x = np.append(x, index)
-                val_new = np.append(val_new, val[i])
+                x.append(index)
+                # val_new = np.append(val_new, val[i])
+                val_new.append(val[i])
         if flag / len(val) < 0.3:
             return [None]
-        interp = interpolate.interp1d(x, val_new, kind='nearest', fill_value="extrapolate")
+        interp = interpolate.interp1d(x, val_new, kind=kind, fill_value="extrapolate")
 
         xi = range(len(val))
         yi = interp(xi)
@@ -456,13 +515,15 @@ class DIC_and_TIF:
     '''
 
     def __init__(self):
-
+        self.this_class_arr = results_root + 'arr\\DIC_and_TIF\\'
+        Tools().mk_dir(self.this_class_arr, force=True)
+        self.tif_template = this_root + 'conf\\tif_template.tif'
         pass
 
 
     def arr_to_tif(self, array, newRasterfn):
         # template
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         _, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         grid_nan = np.isnan(array)
         grid = np.logical_not(grid_nan)
@@ -472,7 +533,7 @@ class DIC_and_TIF:
 
     def arr_to_tif_GDT_Byte(self, array, newRasterfn):
         # template
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         _, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         grid_nan = np.isnan(array)
         grid = np.logical_not(grid_nan)
@@ -503,7 +564,7 @@ class DIC_and_TIF:
         #     y.append(key_split[1])
         # row = len(set(x))
         # col = len(set(y))
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         arr_template, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         row = len(arr_template)
         col = len(arr_template[0])
@@ -539,7 +600,7 @@ class DIC_and_TIF:
         #     y.append(key_split[1])
         # row = len(set(x))
         # col = len(set(y))
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         arr_template, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         row = len(arr_template)
         col = len(arr_template[0])
@@ -566,7 +627,7 @@ class DIC_and_TIF:
         self.arr_to_tif(spatial, out_tif)
 
     def spatial_tif_to_lon_lat_dic(self):
-        tif_template = this_root + 'conf\\SPEI.tif'
+        tif_template = self.tif_template
         arr, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         # print(originX, originY, pixelWidth, pixelHeight)
         # exit()
@@ -578,10 +639,10 @@ class DIC_and_TIF:
                 lat = originY + pixelHeight * i
                 pix_to_lon_lat_dic[pix] = [lon, lat]
         print('saving')
-        np.save(this_root + 'arr\\pix_to_lon_lat_dic', pix_to_lon_lat_dic)
+        np.save(self.this_class_arr + 'pix_to_lon_lat_dic', pix_to_lon_lat_dic)
 
     def void_spatial_dic(self):
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         arr, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         void_dic = {}
         for row in range(len(arr)):
@@ -592,7 +653,7 @@ class DIC_and_TIF:
 
 
     def void_spatial_dic_nan(self):
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         arr, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         void_dic = {}
         for row in range(len(arr)):
@@ -601,8 +662,18 @@ class DIC_and_TIF:
                 void_dic[key] = np.nan
         return void_dic
 
+    def void_spatial_dic_zero(self):
+        tif_template = self.tif_template
+        arr, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
+        void_dic = {}
+        for row in range(len(arr)):
+            for col in range(len(arr[row])):
+                key = (row, col)
+                void_dic[key] = 0.
+        return void_dic
+
     def plot_back_ground_arr(self):
-        tif_template = this_root + 'conf\\tif_template.tif'
+        tif_template = self.tif_template
         arr, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
         back_ground = []
         for i in range(len(arr)):
@@ -629,25 +700,52 @@ class DIC_and_TIF:
         :param latlist: [.....]
         :param vals: [.....]
         :return:
+        :todo: need to be modified
         '''
+        # matrix = np.meshgrid(lonlist,latlist)
+        lons = list(set(lonlist))
+        lats = list(set(latlist))
+        print lons
+        lons.sort()
+        lats.sort()
+        lon_matri,lat_matri = np.meshgrid(lons,lats)
+        # print matrix
+        # for i in range(len(lonlist)):
+        #     print type(lonlist[i]),latlist[i],vals[i]
+        #     sleep()
 
-        lon_lat_dic = dict(np.load(this_root + 'arr\\pix_to_lon_lat_dic.npy').item())
-        lon_lat_dic_reverse = {}
-        for key in lon_lat_dic:
-            lon,lat = lon_lat_dic[key]
-            new_key = str(lon)+'_'+str(lat)
-            lon_lat_dic_reverse[new_key] = key
+        # lon_lat_dic = dict(np.load(self.this_class_arr + 'pix_to_lon_lat_dic.npy').item())
+        # lon_lat_dic_reverse = {}
+        # for key in lon_lat_dic:
+        #     lon,lat = lon_lat_dic[key]
+        #     new_key = str(lon)+'_'+str(lat)
+        #     print new_key
+        #     sleep()
+        #     lon_lat_dic_reverse[new_key] = key
 
-        spatial_dic = {}
-        for i in range(len(lonlist)):
-            lt = str(lonlist[i])+'_'+str(latlist[i])
-            pix = lon_lat_dic_reverse[lt]
-            spatial_dic[pix] = vals[i]
+        # spatial_dic = {}
+        # for i in range(len(lonlist)):
+        #     lt = str(lonlist[i])+'_'+str(latlist[i])
+        #     pix = lon_lat_dic_reverse[lt]
+        #     spatial_dic[pix] = vals[i]
 
-        arr = self.pix_dic_to_spatial_arr_ascii(spatial_dic)
-        return arr
+        # arr = self.pix_dic_to_spatial_arr_ascii(spatial_dic)
+        # return arr
+        exit()
 
 
+    def mask_ocean_dic(self):
+        tif_template = self.tif_template
+        arr, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(tif_template)
+        ocean_dic = {}
+        for i in range(len(arr)):
+            for j in range(len(arr[0])):
+                val = arr[i][j]
+                if val < -99999:
+                    continue
+                else:
+                    ocean_dic[(i,j)]=1
+        return ocean_dic
 
 
 class MULTIPROCESS:
@@ -761,39 +859,7 @@ class KDE_plot:
             colors.append(cmap(i))
         return colors
 
-    def plot_scatter(self, val1, val2, cmap='magma', reverse=0, s=0.3, title='',ax=None,**kwargs):
-
-        print 'data length is {}'.format(len(val1))
-        if len(val1) > 30000:
-            val_range_index = range(len(val1))
-            val_range_index = random.sample(val_range_index, 30000)  # 从val中随机选择30000个点，目的是加快核密度算法
-            new_val1 = []
-            new_val2 = []
-            for i in val_range_index:
-                new_val1.append(val1[i])
-                new_val2.append(val2[i])
-            val1 = new_val1
-            val2 = new_val2
-            print 'data length is modified to {}'.format(len(val1))
-        else:
-            val1 = val1
-            val2 = val2
-
-        kde_val = np.array([val1, val2])
-        print('doing kernel density estimation... ')
-        densObj = kde(kde_val)
-        dens_vals = densObj.evaluate(kde_val)
-        colors = self.makeColours(dens_vals, cmap, reverse=reverse)
-        if ax == None:
-            plt.figure()
-            plt.title(title)
-            plt.scatter(val1, val2, c=colors, s=s,**kwargs)
-        else:
-            plt.title(title)
-            plt.scatter(val1, val2, c=colors, s=s,**kwargs)
-
-
-    def linefit(self,x , y):
+    def linefit(self,x, y):
         '''
         最小二乘法拟合直线
         :param x:
@@ -839,6 +905,43 @@ class KDE_plot:
         plt.title(title)
 
 
+    def plot_scatter(self, val1, val2,plot_fit_line=False, cmap='magma', reverse=0, s=0.3, title='',ax=None,**kwargs):
+        val1 = np.array(val1)
+        val2 = np.array(val2)
+        print 'data length is {}'.format(len(val1))
+        if len(val1) > 30000:
+            val_range_index = range(len(val1))
+            val_range_index = random.sample(val_range_index, 30000)  # 从val中随机选择30000个点，目的是加快核密度算法
+            new_val1 = []
+            new_val2 = []
+            for i in val_range_index:
+                new_val1.append(val1[i])
+                new_val2.append(val2[i])
+            val1 = new_val1
+            val2 = new_val2
+            print 'data length is modified to {}'.format(len(val1))
+        else:
+            val1 = val1
+            val2 = val2
+
+        kde_val = np.array([val1, val2])
+        print('doing kernel density estimation... ')
+        densObj = kde(kde_val)
+        dens_vals = densObj.evaluate(kde_val)
+        colors = self.makeColours(dens_vals, cmap, reverse=reverse)
+        if ax == None:
+            plt.figure()
+            plt.title(title)
+            plt.scatter(val1, val2, c=colors, s=s,**kwargs)
+        else:
+            plt.title(title)
+            plt.scatter(val1, val2, c=colors, s=s,**kwargs)
+        if plot_fit_line:
+            a, b, r = self.linefit(val1,val2)
+            plt.plot([np.min([val1,val2]), np.max([val1,val2])], [np.min([val1,val2]), np.max([val1,val2])], '--', c='black',label='y={:0.2f}x+{:0.2f}\nr={:0.2f}'.format(a,b,r))
+            self.plot_fit_line(a,b,r,val1,val2)
+            plt.legend()
+            return a,b,r
 
 class Pre_Process:
 
@@ -890,7 +993,7 @@ class Pre_Process:
                     if f.split('.')[0] == d:
                         # print(d)
                         array, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(fdir + f)
-                        array = np.array(array,dtype=np.int16)
+                        array = np.array(array,dtype=np.float)
                         # print np.min(array)
                         # print type(array)
                         # plt.imshow(array)
@@ -939,11 +1042,6 @@ class Pre_Process:
             ####### one pix #######
             vals = pix_dic[pix]
             # 清洗数据
-            vals = Tools().interp_1d_1(vals,-3000)
-
-            if len(vals) == 1:
-                anomaly_pix_dic[pix] = []
-                continue
             climatology_means = []
             climatology_std = []
             # vals = signal.detrend(vals)
@@ -953,8 +1051,8 @@ class Pre_Process:
                     mon = i % 12 + 1
                     if mon == m:
                         one_mon.append(pix_dic[pix][i])
-                mean = np.mean(one_mon)
-                std = np.std(one_mon)
+                mean = np.nanmean(one_mon)
+                std = np.nanstd(one_mon)
                 climatology_means.append(mean)
                 climatology_std.append(std)
 
@@ -1010,7 +1108,7 @@ class Pre_Process:
         #     print(p[1])
         #     self.kernel_cal_anomaly(p)
         MULTIPROCESS(self.kernel_cal_anomaly, params).run(process=6, process_or_thread='p',
-                                                         text='calculating anomaly...')
+                                                         desc='calculating anomaly...')
 
 
     def smooth_anomaly(self):
@@ -1079,7 +1177,7 @@ class Pre_Process:
 
 
 def main():
-    raise IOError('Do not run this script')
+    raise UserWarning('Do not run this script')
     pass
 
 

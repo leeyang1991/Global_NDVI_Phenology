@@ -793,6 +793,8 @@ class Phenology:
         # 3 hants smooth
         # self.hants()
         self.check_hants()
+        # 4 º∆À„ top left right
+
         pass
 
     def data_transform(self,fdir, outdir):

@@ -941,6 +941,70 @@ class Phenology:
 
         return x_new,y_new
 
+    def __search_left(self,vals,maxind,threshold_i):
+        left_vals = vals[:maxind]
+        left_min = np.min(left_vals)
+        max_v = vals[maxind]
+        threshold = (max_v - left_min) * threshold_i + left_min
+
+        ind = 999999
+        for step in range(365):
+            ind = maxind-step
+            if ind >= 365:
+                break
+            val_s = vals[ind]
+            if val_s <= threshold:
+                break
+
+        return ind
+
+    def __search_right(self,vals,maxind,threshold_i):
+        right_vals = vals[maxind:]
+        right_min = np.min(right_vals)
+        max_v = vals[maxind]
+        threshold = (max_v - right_min) * threshold_i + right_min
+
+        ind = 999999
+        for step in range(365):
+            ind = maxind + step
+            if ind >= 365:
+                break
+            val_s = vals[ind]
+            if val_s <= threshold:
+                break
+
+        return ind
+
+    def SOS_EOS(self,threshold_i=0.2):
+        out_dir = self.this_class_arr+'SOS_EOS\\threshold_{}\\'.format(threshold_i)
+        Tools().mk_dir(out_dir,force=1)
+        fdir = this_root+r'outdir_2020\arr\Phenology\hants_smooth\\'
+        for y in tqdm(os.listdir(fdir)):
+            year_dir = fdir+y+'\\'
+            result_dic = {}
+            for f in os.listdir(year_dir):
+                dic = dict(np.load(year_dir+f).item())
+                for pix in dic:
+                    try:
+                        vals = dic[pix]
+                        maxind = np.argmax(vals)
+                        start = self.__search_left(vals,maxind,threshold_i)
+                        end = self.__search_right(vals,maxind,threshold_i)
+                        result = [start,end,end-start]
+                        result_dic[pix] = result
+                        # print result
+                    except:
+                        pass
+                        # plt.plot(vals)
+                        # plt.show()
+                        # exit()
+                    # plt.plot(vals)
+                    # plt.plot(range(start,end),vals[start:end],linewidth=4,zorder=99,color='r')
+                    # plt.title('start:{} \nend:{} \nduration:{}'.format(start,end,end-start))
+                    # plt.show()
+            np.save(out_dir+y,result_dic)
+
+
 
 def main():
     Phenology().run()
